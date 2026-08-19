@@ -159,8 +159,8 @@ async function handleCall(
       const entries = reports.map((r) => ({
         type: r.type,
         outputFormat: r.output_format,
-        ...(r.collate !== undefined ? { collate: r.collate } : {}),
-        ...(r.parameters ? { parameters: r.parameters } : {}),
+        collate: r.collate,
+        parameters: r.parameters,
       }));
 
       // Additive confirmation — never blocks when elicitation is unsupported.
