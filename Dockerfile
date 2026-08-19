@@ -10,14 +10,19 @@ ARG NODE_AUTH_TOKEN
 # Set working directory
 WORKDIR /app
 
-# Copy package files and .npmrc for GitHub Packages auth
+# git is required to fetch the node-inforcer SDK from its public git tag
+RUN apk add --no-cache git
+
+# Copy package files and .npmrc (retained for any future GitHub Packages deps)
 COPY package*.json .npmrc ./
 
-# Install dependencies (--ignore-scripts prevents 'prepare' from running before source is copied)
-RUN npm ci --ignore-scripts
-
-# Copy source code
+# Copy source before install. The SDK is a git dependency whose own 'prepare'
+# script builds it from source, so install scripts must run -- and the root
+# 'prepare' needs the source tree already present when they do.
 COPY . .
+
+# Install dependencies (this also builds the SDK) and then the application
+RUN npm ci
 
 # Build the application
 RUN npm run build
