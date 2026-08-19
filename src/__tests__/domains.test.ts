@@ -75,6 +75,20 @@ const mockClient = {
       return { runId: 'run-1' };
     }),
   },
+  reports: {
+    types: vi.fn(async () => [{ key: 'CopilotAdoption', supportedOutputFormats: ['csv'] }]),
+    listRuns: vi.fn(async () => [{ runId: 'run-1', status: 'completed' }]),
+    run: vi.fn(async (_entries: unknown, tenantIds: unknown[]) => {
+      await Promise.all((tenantIds as unknown[]).map((t) => resolveTenantId(t)));
+      return { runId: 'run-1' };
+    }),
+    outputs: vi.fn(async (_runId: string) => ({ isTerminal: true, outputs: [{ id: 'o1' }] })),
+    downloadOutput: vi.fn(async (_runId: string, _outputId: string) => ({
+      data: new TextEncoder().encode('file-bytes').buffer,
+      contentType: 'text/csv',
+      fileName: 'report.csv',
+    })),
+  },
 };
 
 vi.mock('../utils/client.js', () => ({
@@ -257,5 +271,84 @@ describe('assessments domain', () => {
     expect(mockClient.assessments.run).not.toHaveBeenCalled();
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toContain('cancelled');
+  });
+});
+
+describe('reports domain', () => {
+  it('lists the report type catalog', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    await reportsHandler.handleCall('inforcer_reports_types_list', {});
+    expect(mockClient.reports.types).toHaveBeenCalled();
+  });
+
+  it('lists report runs', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    await reportsHandler.handleCall('inforcer_reports_runs_list', {});
+    expect(mockClient.reports.listRuns).toHaveBeenCalled();
+  });
+
+  it('queues a run (resolves tenants) when no elicitation is available', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    const res = await reportsHandler.handleCall('inforcer_reports_run', {
+      reports: [{ type: 'CopilotAdoption', output_format: 'csv' }],
+      tenants: ['Contoso', '139'],
+    });
+    expect(mockClient.reports.run).toHaveBeenCalledWith(
+      [{ type: 'CopilotAdoption', outputFormat: 'csv' }],
+      ['Contoso', '139']
+    );
+    expect(mockClient.resolveTenantId).toHaveBeenCalledWith('Contoso');
+    expect(res.isError).toBeFalsy();
+  });
+
+  it('proceeds when elicitation accepts the confirmation', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    const server = {
+      elicitInput: vi.fn(async () => ({ action: 'accept', content: { confirm: true } })),
+    };
+    const res = await reportsHandler.handleCall(
+      'inforcer_reports_run',
+      { reports: [{ type: 'CopilotAdoption', output_format: 'csv' }], tenants: ['482'] },
+      { server }
+    );
+    expect(server.elicitInput).toHaveBeenCalled();
+    expect(mockClient.reports.run).toHaveBeenCalled();
+    expect(res.isError).toBeFalsy();
+  });
+
+  it('cancels when the user declines the confirmation', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    const server = {
+      elicitInput: vi.fn(async () => ({ action: 'accept', content: { confirm: false } })),
+    };
+    const res = await reportsHandler.handleCall(
+      'inforcer_reports_run',
+      { reports: [{ type: 'CopilotAdoption', output_format: 'csv' }], tenants: ['482'] },
+      { server }
+    );
+    expect(server.elicitInput).toHaveBeenCalled();
+    expect(mockClient.reports.run).not.toHaveBeenCalled();
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('cancelled');
+  });
+
+  it('polls a run status', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    const res = await reportsHandler.handleCall('inforcer_reports_run_status', { run_id: 'run-1' });
+    expect(mockClient.reports.outputs).toHaveBeenCalledWith('run-1');
+    expect(res.isError).toBeFalsy();
+  });
+
+  it('downloads an output as base64', async () => {
+    const { reportsHandler } = await import('../domains/reports.js');
+    const res = await reportsHandler.handleCall('inforcer_reports_download_output', {
+      run_id: 'run-1',
+      output_id: 'o1',
+    });
+    expect(mockClient.reports.downloadOutput).toHaveBeenCalledWith('run-1', 'o1');
+    const parsed = JSON.parse(res.content[0].text);
+    expect(parsed.fileName).toBe('report.csv');
+    expect(parsed.contentType).toBe('text/csv');
+    expect(Buffer.from(parsed.contentBase64, 'base64').toString('utf8')).toBe('file-bytes');
   });
 });

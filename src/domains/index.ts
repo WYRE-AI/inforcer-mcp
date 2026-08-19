@@ -48,6 +48,11 @@ export async function getDomainHandler(domain: DomainName): Promise<DomainHandle
       handler = assessmentsHandler;
       break;
     }
+    case 'reports': {
+      const { reportsHandler } = await import('./reports.js');
+      handler = reportsHandler;
+      break;
+    }
     default:
       throw new Error(`Unknown domain: ${domain}`);
   }

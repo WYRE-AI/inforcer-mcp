@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@wyre-technology/node-inforcer` SDK.
 - Decision-tree navigation (`inforcer_navigate`) and an `inforcer_status`
   connectivity check (live `baselines.list()`).
-- Read-only governance tools across eight domains:
+- Read-only governance tools across nine domains:
   - **tenants**: `inforcer_tenants_list`, `inforcer_tenants_get`, `inforcer_tenants_resolve`
   - **baselines**: `inforcer_baselines_list`
   - **alignment**: `inforcer_alignment_scores`, `inforcer_alignment_details`
@@ -30,8 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **identity**: `inforcer_users_list`, `inforcer_users_get`, `inforcer_groups_list`, `inforcer_groups_get`, `inforcer_roles_list`
   - **audit**: `inforcer_audit_event_types`, `inforcer_audit_search`
   - **assessments**: `inforcer_assessments_list`
-- Single HIGH-IMPACT (non-destructive) write action `inforcer_assessments_run`,
-  with elicitation-based confirmation.
+  - **reports**: `inforcer_reports_types_list`, `inforcer_reports_runs_list`,
+    `inforcer_reports_run_status`, `inforcer_reports_download_output`
+- Two HIGH-IMPACT (non-destructive) write actions — `inforcer_assessments_run` and
+  `inforcer_reports_run` — both with elicitation-based confirmation. `inforcer_reports_run`
+  brings the server to cmdlet parity with the community PowerShell module's report-generation
+  surface (`Invoke-InforcerReport` / `Get-InforcerReportRun` / `Save-InforcerReportOutput`),
+  backed by a new `reports` resource in `@wyre-technology/node-inforcer@1.1.0`.
 - Flexible tenant resolution: `tenant` arguments accept a numeric Client Tenant ID,
   a tenant DNS name, an Azure AD GUID, or a friendly name (resolved via
   `resolveTenantId`).
