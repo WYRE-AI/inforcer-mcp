@@ -47,3 +47,47 @@ export async function confirmAssessmentRun(
 
   return true;
 }
+
+/**
+ * Ask the user to confirm a HIGH-IMPACT report run before it is queued.
+ * Same additive semantics as {@link confirmAssessmentRun}.
+ *
+ * @returns `false` only when the user explicitly declines; `true` otherwise.
+ */
+export async function confirmReportRun(
+  server: Server,
+  reportTypes: string[],
+  tenantCount: number
+): Promise<boolean> {
+  try {
+    const result = await (server as any).elicitInput({
+      mode: 'confirm',
+      message:
+        `Queue report(s) [${reportTypes.join(', ')}] across ${tenantCount} tenant(s)? ` +
+        `This triggers a HIGH-IMPACT (non-destructive) report run in Inforcer.`,
+      requestedSchema: {
+        type: 'object',
+        properties: {
+          confirm: {
+            type: 'boolean',
+            title: 'Confirm report run',
+            description: 'Set to true to queue the report run.',
+          },
+        },
+        required: ['confirm'],
+      },
+    });
+
+    if (result?.action === 'accept' && result.content) {
+      return result.content.confirm === true;
+    }
+    if (result?.action === 'decline' || result?.action === 'cancel') {
+      return false;
+    }
+  } catch {
+    // Elicitation not supported by client — proceed (description instructs
+    // the caller to confirm with the user first).
+  }
+
+  return true;
+}

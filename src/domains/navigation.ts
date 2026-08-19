@@ -10,6 +10,7 @@ export const DOMAINS: DomainName[] = [
   'identity',
   'audit',
   'assessments',
+  'reports',
 ];
 
 export function getNavigationTools(): Tool[] {
@@ -31,7 +32,8 @@ export function getNavigationTools(): Tool[] {
 - secure-scores: Microsoft Secure Score for a tenant
 - identity: Entra ID users, groups, and directory roles for a tenant
 - audit: audit event types and activity-log search
-- assessments: list assessments and trigger an assessment run (the only write action)`,
+- assessments: list assessments and trigger an assessment run (write)
+- reports: list report types and runs, queue a report run and poll it to completion, download a finished output (write)`,
           },
         },
         required: ['domain'],

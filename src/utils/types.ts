@@ -8,7 +8,8 @@ export type DomainName =
   | 'secure-scores'
   | 'identity'
   | 'audit'
-  | 'assessments';
+  | 'assessments'
+  | 'reports';
 
 export type CallToolResult = {
   content: Array<{ type: 'text'; text: string }>;

@@ -12,24 +12,26 @@ async function collectAllDomainTools(): Promise<Tool[]> {
   return tools;
 }
 
+const WRITE_TOOLS = ['inforcer_assessments_run', 'inforcer_reports_run'];
+
 describe('tool annotations', () => {
-  it('only inforcer_assessments_run is non-read-only', async () => {
+  it('only the known write tools are non-read-only', async () => {
     const tools = await collectAllDomainTools();
     const nonReadOnly = tools.filter(t => t.annotations?.readOnlyHint === false);
-    expect(nonReadOnly.map(t => t.name)).toEqual(['inforcer_assessments_run']);
+    expect(nonReadOnly.map(t => t.name).sort()).toEqual([...WRITE_TOOLS].sort());
   });
 
-  it('every domain tool except assessments_run is marked read-only', async () => {
+  it('every domain tool except the known write tools is marked read-only', async () => {
     const tools = await collectAllDomainTools();
     for (const tool of tools) {
-      if (tool.name === 'inforcer_assessments_run') continue;
+      if (WRITE_TOOLS.includes(tool.name)) continue;
       expect(tool.annotations?.readOnlyHint, `${tool.name} should be read-only`).toBe(true);
     }
   });
 
-  it('inforcer_assessments_run is HIGH-IMPACT and non-destructive', async () => {
+  it.each(WRITE_TOOLS)('%s is HIGH-IMPACT and non-destructive', async (toolName) => {
     const tools = await collectAllDomainTools();
-    const run = tools.find(t => t.name === 'inforcer_assessments_run');
+    const run = tools.find(t => t.name === toolName);
     expect(run).toBeDefined();
     expect(run?.description).toContain('⚠ HIGH-IMPACT');
     expect(run?.description).toContain('Confirm with the user before invoking.');

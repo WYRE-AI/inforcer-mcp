@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI assistants structured, **read-only** access to [Inforcer](https://www.inforcer.com) Microsoft 365 baseline-governance data — tenants, baselines, alignment/drift, policies, secure scores, identity, and audit logs — plus a single write action to trigger an assessment run.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI assistants structured, **mostly read-only** access to [Inforcer](https://www.inforcer.com) Microsoft 365 baseline-governance data — tenants, baselines, alignment/drift, policies, secure scores, identity, audit logs, and report generation — plus two write actions to trigger an assessment run or queue a report.
 
 > **Note:** This project is maintained by [Wyre Technology](https://github.com/wyre-technology).
 
@@ -14,9 +14,12 @@ Inforcer does not (at time of writing) publish an official REST API specificatio
 
 ## Read-only scope
 
-Every tool in this server is **read-only** EXCEPT one:
+Every tool in this server is **read-only** EXCEPT two:
 
-- `inforcer_assessments_run` — triggers an assessment run for a tenant. It is **HIGH-IMPACT** (not destructive): it kicks off real work in Inforcer and is visible to operators. It is annotated accordingly and asks for confirmation before running. **Confirm with the user before invoking.**
+- `inforcer_assessments_run` — triggers an assessment run for a tenant.
+- `inforcer_reports_run` — queues one or more report runs across one or more tenants.
+
+Both are **HIGH-IMPACT** (not destructive): they kick off real work in Inforcer and are visible to operators. Both are annotated accordingly and ask for confirmation before running. **Confirm with the user before invoking.**
 
 There are **no** create/update/delete tools for policies, tenants, or baselines — those operations are not exposed by the community API and are intentionally absent here.
 
@@ -120,7 +123,7 @@ Names/DNS/GUIDs are resolved to the numeric Client Tenant ID via the SDK's `reso
 
 ## Domains and tools
 
-The server uses decision-tree navigation. Start with `inforcer_navigate` to pick a domain, or call any tool directly. All tools are read-only except `inforcer_assessments_run`.
+The server uses decision-tree navigation. Start with `inforcer_navigate` to pick a domain, or call any tool directly. All tools are read-only except `inforcer_assessments_run` and `inforcer_reports_run`.
 
 | Domain | Tools | Read-only |
 |--------|-------|-----------|
@@ -133,6 +136,9 @@ The server uses decision-tree navigation. Start with `inforcer_navigate` to pick
 | **identity** | `inforcer_users_list`, `inforcer_users_get`, `inforcer_groups_list`, `inforcer_groups_get`, `inforcer_roles_list` | ✅ |
 | **audit** | `inforcer_audit_event_types`, `inforcer_audit_search` | ✅ |
 | **assessments** | `inforcer_assessments_list` (✅), `inforcer_assessments_run` (⚠ HIGH-IMPACT, **not** read-only) | mixed |
+| **reports** | `inforcer_reports_types_list`, `inforcer_reports_runs_list`, `inforcer_reports_run_status`, `inforcer_reports_download_output` (✅), `inforcer_reports_run` (⚠ HIGH-IMPACT, **not** read-only) | mixed |
+
+`inforcer_reports_run` queues asynchronously — poll the run with `inforcer_reports_run_status` until `isTerminal: true`, then fetch each output with `inforcer_reports_download_output` (returns base64-encoded file content).
 
 ## Gateway connection
 

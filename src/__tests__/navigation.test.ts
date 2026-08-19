@@ -11,10 +11,11 @@ describe('Navigation', () => {
     expect(DOMAINS).toContain('identity');
     expect(DOMAINS).toContain('audit');
     expect(DOMAINS).toContain('assessments');
+    expect(DOMAINS).toContain('reports');
   });
 
-  it('should expose exactly eight domains', () => {
-    expect(DOMAINS).toHaveLength(8);
+  it('should expose exactly nine domains', () => {
+    expect(DOMAINS).toHaveLength(9);
   });
 
   it('should return navigation tools', () => {

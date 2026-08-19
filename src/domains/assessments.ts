@@ -21,9 +21,9 @@ function getTools(): Tool[] {
     {
       name: 'inforcer_assessments_run',
       description:
-        '⚠ HIGH-IMPACT. Triggers an assessment run for a tenant. This is the ONLY write action ' +
-        'in this server — it is not destructive, but it kicks off real work in Inforcer and is ' +
-        `visible to operators. ${TENANT_ARG_DESC} Confirm with the user before invoking.`,
+        '⚠ HIGH-IMPACT. Triggers an assessment run for a tenant. This is not destructive, but it ' +
+        'kicks off real work in Inforcer and is visible to operators. ' +
+        `${TENANT_ARG_DESC} Confirm with the user before invoking.`,
       annotations: {
         title: 'Run assessment (high-impact)',
         readOnlyHint: false,
