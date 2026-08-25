@@ -33,7 +33,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@wyre-technology/node-inforcer": "git+https://github.com/wyre-technology/node-inforcer.git#v1.1.0"
+    "@wyre-technology/node-inforcer": "git+https://github.com/WYRE-AI/node-inforcer.git#v1.1.0"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

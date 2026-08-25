@@ -1,16 +1,16 @@
 # Inforcer MCP Server
 
-[![Build Status](https://github.com/wyre-technology/inforcer-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/wyre-technology/inforcer-mcp/actions/workflows/release.yml)
+[![Build Status](https://github.com/WYRE-AI/inforcer-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/WYRE-AI/inforcer-mcp/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI assistants structured, **mostly read-only** access to [Inforcer](https://www.inforcer.com) Microsoft 365 baseline-governance data — tenants, baselines, alignment/drift, policies, secure scores, identity, audit logs, and report generation — plus two write actions to trigger an assessment run or queue a report.
 
-> **Note:** This project is maintained by [Wyre Technology](https://github.com/wyre-technology).
+> **Note:** This project is maintained by [Wyre Technology](https://github.com/WYRE-AI).
 
 ## ⚠ Community-sourced API
 
-Inforcer does not (at time of writing) publish an official REST API specification. This server wraps the [`@wyre-technology/node-inforcer`](https://github.com/wyre-technology/node-inforcer) SDK, whose API surface is **community-sourced** from [royklo/InforcerCommunity](https://github.com/royklo/InforcerCommunity). Endpoints, field shapes, and behavior may change without notice. Treat results accordingly and verify anything load-bearing against the Inforcer portal.
+Inforcer does not (at time of writing) publish an official REST API specification. This server wraps the [`@wyre-technology/node-inforcer`](https://github.com/WYRE-AI/node-inforcer) SDK, whose API surface is **community-sourced** from [royklo/InforcerCommunity](https://github.com/royklo/InforcerCommunity). Endpoints, field shapes, and behavior may change without notice. Treat results accordingly and verify anything load-bearing against the Inforcer portal.
 
 ## Read-only scope
 
@@ -31,7 +31,7 @@ There are **no** create/update/delete tools for policies, tenants, or baselines 
 claude mcp add inforcer-mcp \
   -e INFORCER_REGION=us \
   -e INFORCER_API_KEY=your-api-key \
-  -- npx -y github:wyre-technology/inforcer-mcp
+  -- npx -y github:WYRE-AI/inforcer-mcp
 ```
 
 See [Installation](#installation) for Docker and from-source methods.
@@ -68,7 +68,7 @@ See [Installation](#installation) for Docker and from-source methods.
 claude mcp add inforcer-mcp \
   -e INFORCER_REGION=us \
   -e INFORCER_API_KEY=your-api-key \
-  -- npx -y github:wyre-technology/inforcer-mcp
+  -- npx -y github:WYRE-AI/inforcer-mcp
 ```
 
 ### Option 2: Docker
@@ -84,15 +84,15 @@ docker run -d \
   -e INFORCER_REGION=us \
   -e INFORCER_API_KEY=your-key \
   -p 8080:8080 \
-  ghcr.io/wyre-technology/inforcer-mcp:latest
+  ghcr.io/wyre-ai/inforcer-mcp:latest
 ```
 
 ### Option 3: From Source
 
 ```bash
-git clone https://github.com/wyre-technology/inforcer-mcp.git
+git clone https://github.com/WYRE-AI/inforcer-mcp.git
 cd inforcer-mcp
-export NODE_AUTH_TOKEN=$(gh auth token)   # to install @wyre-technology/* from GitHub Packages
+export NODE_AUTH_TOKEN=$(gh auth token)   # to install @wyre-ai/* from GitHub Packages
 npm ci
 npm run build
 ```
