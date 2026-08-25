@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.wyre-technology/inforcer-mcp",
+  "name": "io.github.WYRE-AI/inforcer-mcp",
   "title": "Inforcer",
   "description": "Read-only MCP server for Inforcer M365 baseline governance, plus assessment and report runs.",
   "repository": {
-    "url": "https://github.com/wyre-technology/inforcer-mcp",
+    "url": "https://github.com/WYRE-AI/inforcer-mcp",
     "source": "github"
   },
   "version": "0.0.0",
-  "websiteUrl": "https://github.com/wyre-technology/inforcer-mcp",
+  "websiteUrl": "https://github.com/WYRE-AI/inforcer-mcp",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/wyre-technology/inforcer-mcp:0.0.0",
+      "identifier": "ghcr.io/wyre-ai/inforcer-mcp:0.0.0",
       "transport": {
         "type": "stdio"
       },
