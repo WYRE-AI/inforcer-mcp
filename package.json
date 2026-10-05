@@ -32,7 +32,7 @@
   "author": "WYRE Technology",
   "license": "Apache-2.0",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@wyre-technology/node-inforcer": "git+https://github.com/WYRE-AI/node-inforcer.git#v1.1.2"
   },
   "devDependencies": {
