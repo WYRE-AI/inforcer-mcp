@@ -73,18 +73,29 @@ claude mcp add inforcer-mcp \
 
 ### Option 2: Docker
 
+The image listens on `0.0.0.0` inside the container and defaults to `AUTH_MODE=gateway`. Publish the port on loopback and pass a real S2S secret. In gateway mode the Inforcer region and API key arrive on each request as headers; they are not read from the environment.
+
 ```bash
-docker compose up
+docker build -t inforcer-mcp .
+docker run \
+  -e CONDUIT_S2S_SECRET \
+  -p 127.0.0.1:8080:8080 \
+  inforcer-mcp
 ```
 
 Or pull the pre-built image:
 
 ```bash
 docker run -d \
-  -e INFORCER_REGION=us \
-  -e INFORCER_API_KEY=your-key \
-  -p 8080:8080 \
+  -e CONDUIT_S2S_SECRET \
+  -p 127.0.0.1:8080:8080 \
   ghcr.io/wyre-ai/inforcer-mcp:latest
+```
+
+Compose refuses to start when `CONDUIT_S2S_SECRET` is unset:
+
+```bash
+CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" docker compose up
 ```
 
 ### Option 3: From Source
@@ -99,16 +110,39 @@ npm run build
 
 ## Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `INFORCER_REGION` | **Required.** Inforcer API region — one of `anz`, `eu`, `uk`, `us`. There is no default; the server errors clearly if it is missing. | — |
-| `INFORCER_API_KEY` | **Required.** Inforcer API key, sent as the `Inf-Api-Key` header. | — |
-| `MCP_TRANSPORT` | Transport mode (`stdio` or `http`) | `stdio` |
-| `MCP_HTTP_PORT` | HTTP server port | `8080` |
-| `AUTH_MODE` | Auth mode (`env` or `gateway`) | `env` |
-| `LOG_LEVEL` | Log level (`debug`, `info`, `warn`, `error`) | `info` |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `INFORCER_REGION` | For stdio and `AUTH_MODE=env` | Inforcer API region — one of `anz`, `eu`, `uk`, `us`. There is no default. The Compose gateway service does not load this variable. |
+| `INFORCER_API_KEY` | For stdio and `AUTH_MODE=env` | Inforcer API key, sent as the `Inf-Api-Key` header. The Compose gateway service does not load this variable. |
+| `MCP_TRANSPORT` | No | `stdio` (default) or `http` |
+| `AUTH_MODE` | No | `gateway` (Docker image and Compose default) or `env`. Gateway mode requires `X-Inforcer-Region` and `X-Inforcer-API-Key` on each `/mcp` request and never falls back to `INFORCER_*`. `env` uses those variables only after S2S auth succeeds. |
+| `CONDUIT_S2S_SECRET` | Yes for HTTP | Service-to-service secret. Generate with `openssl rand -hex 32`. The HTTP server logs an error and exits non-zero when this is empty or a known placeholder (`changeme`, `your-s2s-secret`, `secret`, `placeholder`, and similar public examples). Compose will not start without it. Never commit a real value. The value is never logged. |
+| `MCP_ALLOW_INSECURE_DEV` | No | Set to exactly `1` only for local development to start HTTP without `CONDUIT_S2S_SECRET`. The process logs a warning, does not enforce `X-Gateway-S2S`, and forces the listener onto `127.0.0.1` even if `MCP_HTTP_HOST` is a wider address. A known placeholder secret is still refused. |
+| `MCP_HTTP_HOST` | No | Bind address when `MCP_TRANSPORT=http`. Defaults to `127.0.0.1` when unset. A configured `CONDUIT_S2S_SECRET` honors this value. The container image sets `0.0.0.0`. |
+| `MCP_HTTP_PORT` | No | HTTP port. Defaults to `8080`. |
+| `LOG_LEVEL` | No | Log level (`debug`, `info`, `warn`, `error`). Defaults to `info`. |
 
-Both `INFORCER_REGION` and `INFORCER_API_KEY` are required for any API call. Tool discovery (`tools/list`) works without them; the first real call will error if either is missing.
+`/health` stays unauthenticated and does not read credentials. The stdio transport does not use `CONDUIT_S2S_SECRET`.
+
+Both `INFORCER_REGION` and `INFORCER_API_KEY` are required for any API call in stdio and `AUTH_MODE=env`. Tool discovery (`tools/list`) works without them; the first real call will error if either is missing.
+
+### HTTP authentication
+
+With `MCP_TRANSPORT=http` and `CONDUIT_S2S_SECRET` set, every `/mcp` request must include `X-Gateway-S2S`. The check is `verifyS2sHeader` in [`src/s2s-verify.ts`](src/s2s-verify.ts): the header value is `t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 of the literal string `t=<unix seconds>` keyed with `CONDUIT_S2S_SECRET` (64 lowercase hex characters). The timestamp must be within 300 seconds of the server clock. A missing or invalid header returns HTTP 401 before vendor credentials are read.
+
+```bash
+TS=$(date +%s)
+SIG=$(printf 't=%s' "$TS" | openssl dgst -sha256 -hmac "$CONDUIT_S2S_SECRET" -hex | awk '{print $NF}')
+curl -sS http://127.0.0.1:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "X-Gateway-S2S: t=${TS},v1=${SIG}" \
+  -H 'X-Inforcer-Region: us' \
+  -H "X-Inforcer-API-Key: $INFORCER_API_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+In `AUTH_MODE=gateway`, `/mcp` also requires `X-Inforcer-Region` and `X-Inforcer-API-Key`. Those headers are the only credential source for the request. With `AUTH_MODE=env`, the signed request uses `INFORCER_REGION` and `INFORCER_API_KEY` from the environment.
 
 ## Tenant identifiers
 
@@ -142,23 +176,43 @@ The server uses decision-tree navigation. Start with `inforcer_navigate` to pick
 
 ## Gateway connection
 
-When hosted behind the WYRE MCP Gateway, set `AUTH_MODE=gateway` and `MCP_TRANSPORT=http`. In this mode the server is stateless (a fresh MCP server + transport per request) and reads credentials from per-request HTTP headers injected by the gateway:
+When hosted behind the WYRE MCP Gateway, set `AUTH_MODE=gateway` and `MCP_TRANSPORT=http`. In this mode the server is stateless (a fresh MCP server + transport per request) and reads credentials from per-request HTTP headers injected by the gateway. A request missing either header gets HTTP 401 and does not fall back to `INFORCER_REGION` or `INFORCER_API_KEY`.
 
 | Header | Maps to |
 |--------|---------|
-| `x-inforcer-region` | `INFORCER_REGION` |
-| `x-inforcer-api-key` | `INFORCER_API_KEY` |
+| `X-Gateway-S2S` | HMAC proof described under [HTTP authentication](#http-authentication). Required on every `/mcp` request when `CONDUIT_S2S_SECRET` is set. |
+| `X-Inforcer-Region` | `INFORCER_REGION` |
+| `X-Inforcer-API-Key` | `INFORCER_API_KEY` |
 
-When both headers are present the server updates the environment and invalidates its cached client so the next call uses the freshly-injected credentials. `tools/list` still works without credentials, so discovery is never blocked. The container image defaults to `MCP_TRANSPORT=http`; `/health` reports `ok` when credentials are configured and `degraded` otherwise.
+The container image defaults to `MCP_TRANSPORT=http` and `AUTH_MODE=gateway`. `/health` always returns 200, does not require authentication, and does not read vendor credentials.
 
 ## Docker Deployment
 
-See [docker-compose.yml](docker-compose.yml) for full configuration. Copy `.env.example` to `.env` and fill in your credentials:
+See [docker-compose.yml](docker-compose.yml). The checked-in Compose service is gateway mode. It publishes `127.0.0.1:8080:8080`, requires `CONDUIT_S2S_SECRET`, and does not set `INFORCER_REGION`, `INFORCER_API_KEY`, or `env_file`.
 
 ```bash
 cp .env.example .env
-# Edit .env with INFORCER_REGION and INFORCER_API_KEY
-docker compose up -d
+# Set CONDUIT_S2S_SECRET in .env (openssl rand -hex 32). Leave INFORCER_* empty
+# for the gateway service; those credentials arrive as request headers.
+CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" docker compose up -d
+```
+
+Single-tenant HTTP (`AUTH_MODE=env`) still requires the S2S secret, then uses `INFORCER_REGION` and `INFORCER_API_KEY`. It is separate from the gateway Compose service:
+
+```bash
+docker run \
+  -e CONDUIT_S2S_SECRET \
+  -e AUTH_MODE=env \
+  -e INFORCER_REGION=us \
+  -e INFORCER_API_KEY=your-key \
+  -p 127.0.0.1:8080:8080 \
+  inforcer-mcp
+```
+
+Local HTTP without a secret is development-only. It binds `127.0.0.1` only and logs a warning. A non-loopback `MCP_HTTP_HOST` is ignored and the override is logged:
+
+```bash
+MCP_TRANSPORT=http MCP_ALLOW_INSECURE_DEV=1 npm run start:http
 ```
 
 ## Development
@@ -171,6 +225,12 @@ npm run dev         # Watch mode
 npm run test        # Run tests
 npm run lint        # Type-check
 npm run clean       # Remove dist/
+
+# HTTP refuses to start until CONDUIT_S2S_SECRET is a real secret
+CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" npm run start:http
+
+# Local HTTP only, without a service-to-service secret (always binds 127.0.0.1)
+MCP_ALLOW_INSECURE_DEV=1 npm run start:http
 ```
 
 ## Testing

@@ -1,5 +1,10 @@
 
 services:
+  # Gateway mode. Region and API key arrive per request on X-Inforcer-* headers.
+  # Do not set INFORCER_REGION, INFORCER_API_KEY, or env_file here — that would
+  # put static vendor credentials in the container. Compose interpolates
+  # CONDUIT_S2S_SECRET from the project .env. For AUTH_MODE=env, pass
+  # INFORCER_REGION and INFORCER_API_KEY on that process instead (see the README).
   inforcer-mcp:
     build:
       context: .
@@ -8,12 +13,15 @@ services:
     image: inforcer-mcp:latest
     container_name: inforcer-mcp-server
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      # Required Inforcer credentials (set these in .env file)
-      - INFORCER_REGION=${INFORCER_REGION}
-      - INFORCER_API_KEY=${INFORCER_API_KEY}
+      # Transport configuration. 0.0.0.0 is the interface inside the container.
+      # The port publish below stays on loopback. Startup still refuses to run
+      # without a real CONDUIT_S2S_SECRET.
+      - MCP_TRANSPORT=http
+      - MCP_HTTP_PORT=8080
+      - MCP_HTTP_HOST=0.0.0.0
+      - AUTH_MODE=gateway
+      - CONDUIT_S2S_SECRET=${CONDUIT_S2S_SECRET:?set CONDUIT_S2S_SECRET}
 
       # Optional configuration
       - MCP_SERVER_NAME=${MCP_SERVER_NAME:-inforcer-mcp}
@@ -22,10 +30,8 @@ services:
       # Logging configuration
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - NODE_ENV=production
-      - MCP_TRANSPORT=http
-      - MCP_HTTP_PORT=8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       # Mount logs directory for persistence
       - inforcer-mcp-logs:/app/logs
@@ -48,7 +54,8 @@ services:
           cpus: '0.1'
           memory: 128M
 
-  # Development service
+  # Local watch profile, not the gateway service. Static INFORCER_* here are
+  # for single-tenant development only and are not loaded by inforcer-mcp.
   inforcer-mcp-dev:
     profiles: ["dev"]
     build:
