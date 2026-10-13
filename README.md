@@ -92,10 +92,10 @@ docker run -d \
   ghcr.io/wyre-ai/inforcer-mcp:latest
 ```
 
-Compose refuses to start when `CONDUIT_S2S_SECRET` is unset:
+Compose reads `CONDUIT_S2S_SECRET` from the project `.env` and refuses to start when that value is unset. Do not assign the variable on the command line: an empty shell value overrides `.env`.
 
 ```bash
-CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" docker compose up
+docker compose up
 ```
 
 ### Option 3: From Source
@@ -130,9 +130,11 @@ Both `INFORCER_REGION` and `INFORCER_API_KEY` are required for any API call in s
 
 With `MCP_TRANSPORT=http` and `CONDUIT_S2S_SECRET` set, every `/mcp` request must include `X-Gateway-S2S`. The check is `verifyS2sHeader` in [`src/s2s-verify.ts`](src/s2s-verify.ts): the header value is `t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 of the literal string `t=<unix seconds>` keyed with `CONDUIT_S2S_SECRET` (64 lowercase hex characters). The timestamp must be within 300 seconds of the server clock. A missing or invalid header returns HTTP 401 before vendor credentials are read.
 
+`CONDUIT_S2S_SECRET` must already be in the environment. The example reads that variable inside the process. It does not pass the secret as a command argument.
+
 ```bash
 TS=$(date +%s)
-SIG=$(printf 't=%s' "$TS" | openssl dgst -sha256 -hmac "$CONDUIT_S2S_SECRET" -hex | awk '{print $NF}')
+SIG=$(printf 't=%s' "$TS" | node -e 'const {createHmac}=require("node:crypto"); const chunks=[]; process.stdin.on("data",(c)=>chunks.push(c)); process.stdin.on("end",()=>{ const secret=process.env.CONDUIT_S2S_SECRET; if(!secret){ console.error("CONDUIT_S2S_SECRET is not set"); process.exit(1); } process.stdout.write(createHmac("sha256", secret).update(Buffer.concat(chunks)).digest("hex")); });')
 curl -sS http://127.0.0.1:8080/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
@@ -194,7 +196,8 @@ See [docker-compose.yml](docker-compose.yml). The checked-in Compose service is 
 cp .env.example .env
 # Set CONDUIT_S2S_SECRET in .env (openssl rand -hex 32). Leave INFORCER_* empty
 # for the gateway service; those credentials arrive as request headers.
-CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" docker compose up -d
+# Compose loads .env itself. Do not prefix the command with a shell assignment.
+docker compose up -d
 ```
 
 Single-tenant HTTP (`AUTH_MODE=env`) still requires the S2S secret, then uses `INFORCER_REGION` and `INFORCER_API_KEY`. It is separate from the gateway Compose service:
