@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- HTTP startup refuses to run when `CONDUIT_S2S_SECRET` is empty or a known placeholder. `MCP_ALLOW_INSECURE_DEV=1` is the only bypass, and it binds `127.0.0.1` only.
+- `AUTH_MODE=gateway` requires `X-Inforcer-Region` and `X-Inforcer-API-Key` on each `/mcp` request and does not fall back to `INFORCER_*` environment variables.
+
 ### Fixed
 
 - `/health` liveness endpoint no longer gates its HTTP status on credentials.
