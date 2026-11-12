@@ -52,6 +52,9 @@ COPY --from=builder /app/node_modules ./node_modules
 RUN mkdir -p /app/logs && chown -R inforcer:inforcer /app
 
 # Switch to non-root user
+# The runtime only executes node; drop the bundled npm CLI (and its CVE-prone deps)
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 USER inforcer
 
 # Expose port
